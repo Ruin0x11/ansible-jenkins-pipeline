@@ -7,6 +7,7 @@ jenkins_plugins:
 - job-dsl
 - workflow-aggregator
 - workflow-cps
+- docker-workflow
 jenkins_seed_name: pipeline-seed
 jenkins_seed_template: seed-config.xml.j2
 jenkins_job_template: jobs.groovy.j2
@@ -19,4 +20,5 @@ jenkins_acl_approved_signatures: []
 jenkins_slave_agent_port: 0
 jenkins_cloud_configs: ""
 jenkins_admin_address: nobody@example.com
+jenkins_home: /var/lib/jenkins
 #jenkins_url:
