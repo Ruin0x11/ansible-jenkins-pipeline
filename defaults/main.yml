@@ -8,6 +8,7 @@ jenkins_plugins:
 - workflow-aggregator
 - workflow-cps
 - docker-workflow
+- blueocean
 jenkins_seed_name: pipeline-seed
 jenkins_seed_template: seed-config.xml.j2
 jenkins_job_template: jobs.groovy.j2
@@ -21,4 +22,6 @@ jenkins_slave_agent_port: 0
 jenkins_cloud_configs: ""
 jenkins_admin_address: nobody@example.com
 jenkins_home: /var/lib/jenkins
+jenkins_virtual_host: "http://aoiumi.meguca.moe"
+install_jenkins: False
 #jenkins_url:

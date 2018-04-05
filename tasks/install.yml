@@ -1,0 +1,86 @@
+---
+- name: Install Jenkins
+  pacman:
+      name: jenkins
+      state: present
+
+- name: Create JENKINS_ARGS
+  copy:
+      content: "JENKINS_ARGS=\"\""
+      dest: "{{ jenkins_defaults_file }}"
+      force: no
+
+- name: Set Jenkins JAVA_ARGS
+  lineinfile:
+    dest: "{{ jenkins_defaults_file }}"
+    insertbefore: "^JENKINS_ARGS.*"
+    line: "JAVA_ARGS=\"{{ jenkins_java_args }} {{ jenkins_java_extra_args }}\""
+  register: jenkins_defaults
+
+- name: Allow logins with Jenkins SSH key
+  authorized_key: user=jenkins key="{{ lookup('file', jenkins_ssh_public_key) }}"
+  when: "jenkins_ssh_public_key is defined and jenkins_ssh_public_key is not none"
+
+- name: Ensure Jenkins SSH directory exists
+  file: path="{{ jenkins_home }}/.ssh" owner=jenkins group=jenkins mode=0755 state=directory
+
+- name: Install Jenkins SSH key
+  copy: src="{{ jenkins_ssh_private_key }}" dest="{{ jenkins_home }}/.ssh/id_rsa" owner=jenkins group=jenkins mode=0600
+  when: "jenkins_ssh_private_key is defined and jenkins_ssh_private_key is not none"
+
+- name: Remove initial Jenkins password
+  file: name=/var/lib/jenkins/secrets/initialAdminPassword state=absent
+
+- name: Create Jenkins admin password hash
+  shell: echo -n "{{ jenkins_admin_password }}{ansible_jenkins}" | sha256sum - | awk '{ print $1; }'
+  register: jenkins_password_hash
+
+- name: Create admin user directory
+  file: path="{{ jenkins_home }}/users/admin" owner=jenkins group=jenkins mode=0755 state=directory recurse=yes
+
+- name: Create admin
+  template: src=admin-config.xml.j2 dest="{{ jenkins_home }}/users/admin/config.xml"
+  register: jenkins_admin_config
+  when: jenkins_password_hash is changed
+
+- name: Create config
+  template: src=config.xml.j2 dest="{{ jenkins_home }}/config.xml"
+  register: jenkins_config_change
+
+- name: Create scriptApproval
+  template: src=scriptApproval.xml.j2 dest="{{ jenkins_home }}/scriptApproval.xml"
+  register: jenkins_config_change
+
+- name: Create Jenkins location configuration
+  template:
+    src: jenkins.model.JenkinsLocationConfiguration.xml.j2
+    dest: "{{ jenkins_home }}/jenkins.model.JenkinsLocationConfiguration.xml"
+  when: jenkins_url is defined and jenkins_url != ""
+  register: jenkins_config_change
+
+- name: Create CLI config (disable CLI)
+  copy: src=jenkins.CLI.xml dest="{{ jenkins_home }}/jenkins.CLI.xml"
+
+- name: Create queue item authenticator configuration
+  copy:
+    src: jenkins.security.QueueItemAuthenticatorConfiguration.xml
+    dest: "{{ jenkins_home }}/jenkins.security.QueueItemAuthenticatorConfiguration.xml"
+
+- name: Create job-dsl security configuration
+  copy:
+    src: javaposse.jobdsl.plugin.GlobalJobDslSecurityConfiguration.xml
+    dest: "{{ jenkins_home }}/javaposse.jobdsl.plugin.GlobalJobDslSecurityConfiguration.xml"
+
+- name: Create download settings configuration
+  copy:
+    src: jenkins.model.DownloadSettings.xml
+    dest: "{{ jenkins_home }}/jenkins.model.DownloadSettings.xml"
+
+- name: Create /var/lib/jenkins/secrets
+  file: path="/var/lib/jenkins/secrets" owner=jenkins group=jenkins mode=0700 state=directory recurse=yes
+
+- name: Enable master to slave access control
+  copy:
+    content: "false"
+    dest: "/var/lib/jenkins/secrets/slave-to-master-security-kill-switch"
+
